@@ -1,10 +1,13 @@
+
 public class Satellite
 {
     private final String name;
     private final double dryMass;
+
     private double propellantMass;
+
     private Orbit currentOrbit;
-    private Orbit targetOrbit;
+    private final Orbit targetOrbit;
 
     public Satellite(
         String name,
@@ -20,28 +23,36 @@ public class Satellite
             );
         }
 
-        if (dryMass <= 0)
+        if (!Double.isFinite(dryMass) || dryMass <= 0.0)
         {
             throw new IllegalArgumentException(
-                "Dry mass must be greater than 0."
+                "Dry mass must be finite and positive."
             );
         }
 
-        if (propellantMass < 0)
+        if (!Double.isFinite(propellantMass)
+                || propellantMass < 0.0)
         {
             throw new IllegalArgumentException(
-                "Propellant mass cannot be negative."
+                "Propellant mass must be finite and non-negative."
+            );
+        }
+
+        if (!Double.isFinite(dryMass + propellantMass))
+        {
+            throw new IllegalArgumentException(
+                "Total spacecraft mass exceeds the numeric range."
             );
         }
 
         if (currentOrbit == null || targetOrbit == null)
         {
             throw new IllegalArgumentException(
-                "Orbits cannot be null."
+                "Current and target orbits cannot be null."
             );
         }
 
-        this.name = name;
+        this.name = name.trim();
         this.dryMass = dryMass;
         this.propellantMass = propellantMass;
         this.currentOrbit = currentOrbit;
@@ -97,10 +108,11 @@ public class Satellite
 
     public void consumePropellant(double amount)
     {
-        if (amount < 0)
+        if (!Double.isFinite(amount) || amount < 0.0)
         {
             throw new IllegalArgumentException(
-                "Propellant consumption cannot be negative."
+                "Propellant consumption must be finite "
+                + "and non-negative."
             );
         }
 

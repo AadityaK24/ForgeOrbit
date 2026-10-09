@@ -1,3 +1,4 @@
+
 public class InputValidator
 {
     public boolean isValidMissionName(String missionName)
@@ -8,40 +9,44 @@ public class InputValidator
 
     public boolean isValidAltitude(double altitude)
     {
-        return altitude > 0;
+        return Double.isFinite(altitude) && altitude > 0.0;
     }
 
     public boolean isValidMass(double mass)
     {
-        return mass > 0;
+        return Double.isFinite(mass) && mass > 0.0;
     }
 
     public boolean isValidPropellantMass(double propellantMass)
     {
-        return propellantMass >= 0;
+        return Double.isFinite(propellantMass)
+            && propellantMass >= 0.0;
     }
 
     public boolean isValidSpecificImpulse(double specificImpulse)
     {
-        return specificImpulse > 0;
+        return Double.isFinite(specificImpulse)
+            && specificImpulse > 0.0;
     }
 
     public boolean isValidThrust(double thrust)
     {
-        return thrust > 0;
+        return Double.isFinite(thrust) && thrust > 0.0;
     }
 
     public boolean isValidEfficiency(double efficiency)
     {
-        return efficiency > 0 && efficiency <= 1;
+        return Double.isFinite(efficiency)
+            && efficiency > 0.0
+            && efficiency <= 1.0;
     }
 
     public boolean areValidOrbitAltitudes(
         double initialAltitude,
         double targetAltitude)
     {
-        return initialAltitude > 0
-            && targetAltitude > 0
+        return isValidAltitude(initialAltitude)
+            && isValidAltitude(targetAltitude)
             && initialAltitude != targetAltitude;
     }
 
@@ -49,8 +54,9 @@ public class InputValidator
         double dryMass,
         double propellantMass)
     {
-        return dryMass > 0
-            && propellantMass >= 0;
+        return isValidMass(dryMass)
+            && isValidPropellantMass(propellantMass)
+            && Double.isFinite(dryMass + propellantMass);
     }
 
     public boolean isValidPropulsionData(
@@ -58,9 +64,8 @@ public class InputValidator
         double thrust,
         double efficiency)
     {
-        return specificImpulse > 0
-            && thrust > 0
-            && efficiency > 0
-            && efficiency <= 1;
+        return isValidSpecificImpulse(specificImpulse)
+            && isValidThrust(thrust)
+            && isValidEfficiency(efficiency);
     }
 }

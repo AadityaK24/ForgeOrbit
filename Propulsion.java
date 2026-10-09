@@ -1,3 +1,4 @@
+
 public class Propulsion
 {
     private final String engineName;
@@ -18,31 +19,43 @@ public class Propulsion
             );
         }
 
-        if (specificImpulse <= 0)
+        if (!Double.isFinite(specificImpulse)
+                || specificImpulse <= 0.0)
         {
             throw new IllegalArgumentException(
-                "Specific impulse must be greater than 0."
+                "Specific impulse must be finite and positive."
             );
         }
 
-        if (thrust <= 0)
+        if (!Double.isFinite(thrust) || thrust <= 0.0)
         {
             throw new IllegalArgumentException(
-                "Thrust must be greater than 0."
+                "Thrust must be finite and positive."
             );
         }
 
-        if (efficiency <= 0 || efficiency > 1)
+        if (!Double.isFinite(efficiency)
+                || efficiency <= 0.0
+                || efficiency > 1.0)
         {
             throw new IllegalArgumentException(
-                "Efficiency must be between 0 and 1."
+                "Efficiency must be greater than zero "
+                + "and at most one."
             );
         }
 
-        this.engineName = engineName;
+        this.engineName = engineName.trim();
         this.specificImpulse = specificImpulse;
         this.thrust = thrust;
         this.efficiency = efficiency;
+
+        if (!Double.isFinite(getEffectiveThrust())
+                || getEffectiveThrust() <= 0.0)
+        {
+            throw new IllegalArgumentException(
+                "Effective thrust must be finite and positive."
+            );
+        }
     }
 
     public String getEngineName()
@@ -65,28 +78,51 @@ public class Propulsion
         return efficiency;
     }
 
+    public double getEffectiveThrust()
+    {
+        return thrust * efficiency;
+    }
+
     public double calculateExhaustVelocity()
     {
-        return specificImpulse * Constants.STANDARD_GRAVITY;
+        double velocity =
+            specificImpulse * Constants.STANDARD_GRAVITY;
+
+        if (!Double.isFinite(velocity) || velocity <= 0.0)
+        {
+            throw new ArithmeticException(
+                "Effective exhaust velocity is invalid."
+            );
+        }
+
+        return velocity;
     }
 
     public double calculateMassFlowRate()
     {
-        return thrust / calculateExhaustVelocity();
-    }
+        double flowRate =
+            getEffectiveThrust() / calculateExhaustVelocity();
 
-    public double calculateBurnTime(
-        double propellantMass)
-    {
-        if (propellantMass < 0)
+        if (!Double.isFinite(flowRate) || flowRate <= 0.0)
         {
-            throw new IllegalArgumentException(
-                "Propellant mass cannot be negative."
+            throw new ArithmeticException(
+                "Mass flow rate is invalid."
             );
         }
 
-        double massFlowRate = calculateMassFlowRate();
+        return flowRate;
+    }
 
-        return propellantMass / massFlowRate;
+    public double calculateBurnTime(double propellantMass)
+    {
+        if (!Double.isFinite(propellantMass)
+                || propellantMass < 0.0)
+        {
+            throw new IllegalArgumentException(
+                "Propellant mass must be finite and non-negative."
+            );
+        }
+
+        return propellantMass / calculateMassFlowRate();
     }
 }

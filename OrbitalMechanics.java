@@ -1,3 +1,4 @@
+
 public class OrbitalMechanics
 {
     private final Earth earth;
@@ -9,62 +10,133 @@ public class OrbitalMechanics
 
     public double calculateCircularVelocity(Orbit orbit)
     {
-        double mu = earth.getGravitationalParameter();
-        double radius = orbit.getRadius();
+        validateOrbit(orbit);
 
-        return Math.sqrt(mu / radius);
+        double velocity = Math.sqrt(
+            earth.getGravitationalParameter()
+            / orbit.getRadius()
+        );
+
+        return requireFiniteResult(velocity);
     }
 
     public double calculateOrbitalPeriod(Orbit orbit)
     {
-        double mu = earth.getGravitationalParameter();
-        double radius = orbit.getRadius();
+        validateOrbit(orbit);
 
-        return Constants.TWO_PI * Math.sqrt(
-            Math.pow(radius, 3) / mu
-        );
+        double radius = orbit.getRadius();
+        double mu = earth.getGravitationalParameter();
+
+        double period = Constants.TWO_PI
+            * Math.sqrt(radius * radius * radius / mu);
+
+        return requireFiniteResult(period);
     }
 
     public double calculateEscapeVelocity(Orbit orbit)
     {
-        double mu = earth.getGravitationalParameter();
-        double radius = orbit.getRadius();
+        validateOrbit(orbit);
 
-        return Math.sqrt((2.0 * mu) / radius);
+        double velocity = Math.sqrt(
+            2.0 * earth.getGravitationalParameter()
+            / orbit.getRadius()
+        );
+
+        return requireFiniteResult(velocity);
     }
 
     public double calculateGravitationalAcceleration(Orbit orbit)
     {
-        double mu = earth.getGravitationalParameter();
+        validateOrbit(orbit);
+
         double radius = orbit.getRadius();
 
-        return mu / Math.pow(radius, 2);
+        double gravity = earth.getGravitationalParameter()
+            / (radius * radius);
+
+        return requireFiniteResult(gravity);
     }
 
     public double calculateSpecificOrbitalEnergy(Orbit orbit)
     {
-        double mu = earth.getGravitationalParameter();
-        double radius = orbit.getRadius();
+        validateOrbit(orbit);
 
-        return -mu / (2.0 * radius);
+        double energy =
+            -earth.getGravitationalParameter()
+            / (2.0 * orbit.getRadius());
+
+        if (!Double.isFinite(energy))
+        {
+            throw new ArithmeticException(
+                "Specific orbital energy is not finite."
+            );
+        }
+
+        return energy;
     }
 
     public double calculateVisVivaVelocity(
         Orbit orbit,
         double semiMajorAxis)
     {
-        if (semiMajorAxis <= 0)
+        validateOrbit(orbit);
+
+        if (!Double.isFinite(semiMajorAxis)
+                || semiMajorAxis <= 0.0)
         {
             throw new IllegalArgumentException(
-                "Semi-major axis must be greater than 0."
+                "Semi-major axis must be finite and positive."
             );
         }
 
-        double mu = earth.getGravitationalParameter();
         double radius = orbit.getRadius();
 
-        return Math.sqrt(
-            mu * ((2.0 / radius) - (1.0 / semiMajorAxis))
+        double velocityTerm =
+            (2.0 / radius) - (1.0 / semiMajorAxis);
+
+        if (!Double.isFinite(velocityTerm)
+                || velocityTerm <= 0.0)
+        {
+            throw new IllegalArgumentException(
+                "The supplied radius and semi-major axis "
+                + "do not produce a valid positive orbital velocity."
+            );
+        }
+
+        double velocity = Math.sqrt(
+            earth.getGravitationalParameter() * velocityTerm
         );
+
+        return requireFiniteResult(velocity);
+    }
+
+    private void validateOrbit(Orbit orbit)
+    {
+        if (orbit == null)
+        {
+            throw new IllegalArgumentException(
+                "Orbit cannot be null."
+            );
+        }
+
+        if (!Double.isFinite(orbit.getRadius())
+                || orbit.getRadius() <= 0.0)
+        {
+            throw new IllegalArgumentException(
+                "Orbital radius must be finite and positive."
+            );
+        }
+    }
+
+    private double requireFiniteResult(double value)
+    {
+        if (!Double.isFinite(value) || value <= 0.0)
+        {
+            throw new ArithmeticException(
+                "Orbital calculation produced an invalid result."
+            );
+        }
+
+        return value;
     }
 }

@@ -1,3 +1,4 @@
+
 public class PropellantCalculator
 {
     public double calculateRequiredPropellant(
@@ -5,36 +6,27 @@ public class PropellantCalculator
         double dryMass,
         Propulsion propulsion)
     {
-        if (deltaV < 0)
-        {
-            throw new IllegalArgumentException(
-                "Delta-v cannot be negative."
-            );
-        }
-
-        if (dryMass <= 0)
-        {
-            throw new IllegalArgumentException(
-                "Dry mass must be greater than 0."
-            );
-        }
-
-        if (propulsion == null)
-        {
-            throw new IllegalArgumentException(
-                "Propulsion system cannot be null."
-            );
-        }
+        validateDeltaV(deltaV);
+        validatePositiveMass(dryMass);
+        validatePropulsion(propulsion);
 
         double exhaustVelocity =
             propulsion.calculateExhaustVelocity();
 
-        double massRatio =
-            Math.exp(deltaV / exhaustVelocity);
+        double exponent = deltaV / exhaustVelocity;
 
-        double initialMass = dryMass * massRatio;
+        double propellantMass =
+            dryMass * Math.expm1(exponent);
 
-        return initialMass - dryMass;
+        if (!Double.isFinite(propellantMass)
+                || propellantMass < 0.0)
+        {
+            throw new ArithmeticException(
+                "Required propellant exceeds the numeric range."
+            );
+        }
+
+        return propellantMass;
     }
 
     public double calculateFinalMass(
@@ -42,32 +34,24 @@ public class PropellantCalculator
         double deltaV,
         Propulsion propulsion)
     {
-        if (initialMass <= 0)
+        validatePositiveMass(initialMass);
+        validateDeltaV(deltaV);
+        validatePropulsion(propulsion);
+
+        double exponent = deltaV
+            / propulsion.calculateExhaustVelocity();
+
+        double finalMass =
+            initialMass * Math.exp(-exponent);
+
+        if (!Double.isFinite(finalMass) || finalMass <= 0.0)
         {
-            throw new IllegalArgumentException(
-                "Initial mass must be greater than 0."
+            throw new ArithmeticException(
+                "Final mass is outside the representable range."
             );
         }
 
-        if (deltaV < 0)
-        {
-            throw new IllegalArgumentException(
-                "Delta-v cannot be negative."
-            );
-        }
-
-        if (propulsion == null)
-        {
-            throw new IllegalArgumentException(
-                "Propulsion system cannot be null."
-            );
-        }
-
-        double exhaustVelocity =
-            propulsion.calculateExhaustVelocity();
-
-        return initialMass /
-            Math.exp(deltaV / exhaustVelocity);
+        return finalMass;
     }
 
     public double calculateAvailableDeltaV(
@@ -75,55 +59,104 @@ public class PropellantCalculator
         double propellantMass,
         Propulsion propulsion)
     {
-        if (dryMass <= 0)
+        validatePositiveMass(dryMass);
+        validatePropellantMass(propellantMass);
+        validatePropulsion(propulsion);
+
+        if (propellantMass == 0.0)
         {
-            throw new IllegalArgumentException(
-                "Dry mass must be greater than 0."
+            return 0.0;
+        }
+
+        double ratio = propellantMass / dryMass;
+
+        double logarithmicMassRatio;
+
+        if (Double.isFinite(ratio))
+        {
+            logarithmicMassRatio = Math.log1p(ratio);
+        }
+        else
+        {
+            logarithmicMassRatio =
+                Math.log(propellantMass) - Math.log(dryMass);
+        }
+
+        double deltaV =
+            propulsion.calculateExhaustVelocity()
+            * logarithmicMassRatio;
+
+        if (!Double.isFinite(deltaV) || deltaV < 0.0)
+        {
+            throw new ArithmeticException(
+                "Available delta-v is outside the numeric range."
             );
         }
 
-        if (propellantMass < 0)
-        {
-            throw new IllegalArgumentException(
-                "Propellant mass cannot be negative."
-            );
-        }
-
-        if (propulsion == null)
-        {
-            throw new IllegalArgumentException(
-                "Propulsion system cannot be null."
-            );
-        }
-
-        double initialMass = dryMass + propellantMass;
-        double exhaustVelocity =
-            propulsion.calculateExhaustVelocity();
-
-        return exhaustVelocity *
-            Math.log(initialMass / dryMass);
+        return deltaV;
     }
 
     public double calculatePropellantFraction(
         double dryMass,
         double propellantMass)
     {
-        if (dryMass <= 0)
+        validatePositiveMass(dryMass);
+        validatePropellantMass(propellantMass);
+
+        if (propellantMass == 0.0)
         {
-            throw new IllegalArgumentException(
-                "Dry mass must be greater than 0."
-            );
+            return 0.0;
         }
 
-        if (propellantMass < 0)
+        if (propellantMass <= dryMass)
         {
-            throw new IllegalArgumentException(
-                "Propellant mass cannot be negative."
-            );
+            double ratio = propellantMass / dryMass;
+
+            return ratio / (1.0 + ratio);
         }
 
-        double initialMass = dryMass + propellantMass;
+        double ratio = dryMass / propellantMass;
 
-        return propellantMass / initialMass;
+        return 1.0 / (1.0 + ratio);
+    }
+
+    private void validateDeltaV(double deltaV)
+    {
+        if (!Double.isFinite(deltaV) || deltaV < 0.0)
+        {
+            throw new IllegalArgumentException(
+                "Delta-v must be finite and non-negative."
+            );
+        }
+    }
+
+    private void validatePositiveMass(double mass)
+    {
+        if (!Double.isFinite(mass) || mass <= 0.0)
+        {
+            throw new IllegalArgumentException(
+                "Mass must be finite and positive."
+            );
+        }
+    }
+
+    private void validatePropellantMass(double mass)
+    {
+        if (!Double.isFinite(mass) || mass < 0.0)
+        {
+            throw new IllegalArgumentException(
+                "Propellant mass must be finite and non-negative."
+            );
+        }
+    }
+
+    private void validatePropulsion(Propulsion propulsion)
+    {
+        if (propulsion == null)
+        {
+            throw new IllegalArgumentException(
+                "Propulsion system cannot be null."
+            );
+        }
     }
 }

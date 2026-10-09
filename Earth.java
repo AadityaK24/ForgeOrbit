@@ -1,3 +1,4 @@
+
 public class Earth
 {
     private final double radius;
@@ -10,7 +11,9 @@ public class Earth
         radius = Constants.EARTH_RADIUS;
         mass = Constants.EARTH_MASS;
         gravitationalParameter = Constants.EARTH_MU;
-        surfaceGravity = Constants.STANDARD_GRAVITY;
+
+        surfaceGravity = gravitationalParameter
+            / (radius * radius);
     }
 
     public double getRadius()
