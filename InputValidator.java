@@ -1,71 +1,51 @@
-
-public class InputValidator
+public final class InputValidator
 {
-    public boolean isValidMissionName(String missionName)
+    private InputValidator() { }
+
+    public static double parseFiniteDouble(String text, String fieldName)
     {
-        return missionName != null
-            && !missionName.trim().isEmpty();
+        if (text == null || text.trim().isEmpty()) throw new IllegalArgumentException(fieldName + " is required.");
+        final double value;
+        try { value = Double.parseDouble(text.trim()); }
+        catch (NumberFormatException ex) { throw new IllegalArgumentException(fieldName + " must be a number."); }
+        if (!Double.isFinite(value)) throw new IllegalArgumentException(fieldName + " must be finite.");
+        return value;
     }
 
-    public boolean isValidAltitude(double altitude)
+    public static double parsePositiveDouble(String text, String fieldName)
     {
-        return Double.isFinite(altitude) && altitude > 0.0;
+        double value = parseFiniteDouble(text, fieldName);
+        if (value <= 0.0) throw new IllegalArgumentException(fieldName + " must be greater than zero.");
+        return value;
     }
 
-    public boolean isValidMass(double mass)
+    public static double parseNonNegativeDouble(String text, String fieldName)
     {
-        return Double.isFinite(mass) && mass > 0.0;
+        double value = parseFiniteDouble(text, fieldName);
+        if (value < 0.0) throw new IllegalArgumentException(fieldName + " cannot be negative.");
+        return value;
     }
 
-    public boolean isValidPropellantMass(double propellantMass)
+    public static int parsePositiveInteger(String text, String fieldName)
     {
-        return Double.isFinite(propellantMass)
-            && propellantMass >= 0.0;
+        if (text == null || text.trim().isEmpty()) throw new IllegalArgumentException(fieldName + " is required.");
+        try
+        {
+            int value = Integer.parseInt(text.trim());
+            if (value <= 0) throw new IllegalArgumentException(fieldName + " must be greater than zero.");
+            return value;
+        }
+        catch (NumberFormatException ex) { throw new IllegalArgumentException(fieldName + " must be a whole number greater than zero."); }
     }
 
-    public boolean isValidSpecificImpulse(double specificImpulse)
+    public static boolean isValidPositiveNumber(String text)
     {
-        return Double.isFinite(specificImpulse)
-            && specificImpulse > 0.0;
+        try { return parsePositiveDouble(text, "Value") > 0.0; }
+        catch (IllegalArgumentException ex) { return false; }
     }
 
-    public boolean isValidThrust(double thrust)
+    public static void requireNonEmpty(String text, String fieldName)
     {
-        return Double.isFinite(thrust) && thrust > 0.0;
-    }
-
-    public boolean isValidEfficiency(double efficiency)
-    {
-        return Double.isFinite(efficiency)
-            && efficiency > 0.0
-            && efficiency <= 1.0;
-    }
-
-    public boolean areValidOrbitAltitudes(
-        double initialAltitude,
-        double targetAltitude)
-    {
-        return isValidAltitude(initialAltitude)
-            && isValidAltitude(targetAltitude)
-            && initialAltitude != targetAltitude;
-    }
-
-    public boolean isValidSatelliteData(
-        double dryMass,
-        double propellantMass)
-    {
-        return isValidMass(dryMass)
-            && isValidPropellantMass(propellantMass)
-            && Double.isFinite(dryMass + propellantMass);
-    }
-
-    public boolean isValidPropulsionData(
-        double specificImpulse,
-        double thrust,
-        double efficiency)
-    {
-        return isValidSpecificImpulse(specificImpulse)
-            && isValidThrust(thrust)
-            && isValidEfficiency(efficiency);
+        if (text == null || text.trim().isEmpty()) throw new IllegalArgumentException(fieldName + " cannot be empty.");
     }
 }

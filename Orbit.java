@@ -1,51 +1,48 @@
-
 public class Orbit
 {
     private final Earth earth;
-
     private double altitude;
     private double radius;
 
+    // Altitude is in metres above the mean Earth radius.
     public Orbit(double altitude)
     {
-        earth = new Earth();
+        this(new Earth(), altitude);
+    }
+
+    public Orbit(Earth earth, double altitude)
+    {
+        if (earth == null)
+        {
+            throw new IllegalArgumentException("Earth model cannot be null.");
+        }
+        if (!Double.isFinite(altitude) || altitude < 0.0)
+        {
+            throw new IllegalArgumentException("Orbit altitude must be finite and non-negative.");
+        }
+        this.earth = earth;
         setAltitude(altitude);
     }
 
-    public double getAltitude()
-    {
-        return altitude;
-    }
-
-    public double getRadius()
-    {
-        return radius;
-    }
+    public Earth getEarth() { return earth; }
+    public double getAltitude() { return altitude; }
+    public double getRadius() { return radius; }
 
     public void setAltitude(double altitude)
     {
-        if (!Double.isFinite(altitude) || altitude <= 0.0)
+        if (!Double.isFinite(altitude) || altitude < 0.0)
         {
-            throw new IllegalArgumentException(
-                "Orbit altitude must be finite and greater than zero."
-            );
+            throw new IllegalArgumentException("Orbit altitude must be finite and non-negative.");
         }
-
-        double newRadius = earth.getRadius() + altitude;
-
-        if (!Double.isFinite(newRadius))
+        double computedRadius = earth.getRadius() + altitude;
+        if (!Double.isFinite(computedRadius) || computedRadius <= earth.getRadius())
         {
-            throw new IllegalArgumentException(
-                "Calculated orbital radius is invalid."
-            );
+            throw new IllegalArgumentException("Computed orbital radius is invalid.");
         }
-
         this.altitude = altitude;
-        this.radius = newRadius;
+        this.radius = computedRadius;
     }
 
-    public Earth getEarth()
-    {
-        return earth;
-    }
+    public double getAltitudeKm() { return altitude * Constants.M_TO_KM; }
+    public double getRadiusKm() { return radius * Constants.M_TO_KM; }
 }

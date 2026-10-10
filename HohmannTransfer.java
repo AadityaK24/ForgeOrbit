@@ -1,143 +1,53 @@
-
 public class HohmannTransfer
 {
     private final Earth earth;
-    private final OrbitalMechanics orbitalMechanics;
+    private final OrbitalMechanics mechanics;
 
-    public HohmannTransfer()
+    public HohmannTransfer() { this(new Earth()); }
+    public HohmannTransfer(Earth earth) { this(earth, new OrbitalMechanics(earth)); }
+
+    public HohmannTransfer(Earth earth, OrbitalMechanics mechanics)
     {
-        earth = new Earth();
-        orbitalMechanics = new OrbitalMechanics();
+        if (earth == null || mechanics == null) throw new IllegalArgumentException("Earth and orbital mechanics cannot be null.");
+        this.earth = earth;
+        this.mechanics = mechanics;
     }
 
-    public double calculateTransferSemiMajorAxis(
-        Orbit initialOrbit,
-        Orbit targetOrbit)
+    public TransferResult calculateTransfer(Orbit initialOrbit, Orbit targetOrbit)
     {
-        validateOrbits(initialOrbit, targetOrbit);
-
-        return (initialOrbit.getRadius()
-            + targetOrbit.getRadius()) / 2.0;
-    }
-
-    public double calculateFirstBurnDeltaV(
-        Orbit initialOrbit,
-        Orbit targetOrbit)
-    {
-        validateOrbits(initialOrbit, targetOrbit);
-
-        double transferAxis =
-            calculateTransferSemiMajorAxis(
-                initialOrbit,
-                targetOrbit
-            );
-
-        double initialVelocity =
-            orbitalMechanics.calculateCircularVelocity(
-                initialOrbit
-            );
-
-        double transferVelocity =
-            orbitalMechanics.calculateVisVivaVelocity(
-                initialOrbit,
-                transferAxis
-            );
-
-        return Math.abs(transferVelocity - initialVelocity);
-    }
-
-    public double calculateSecondBurnDeltaV(
-        Orbit initialOrbit,
-        Orbit targetOrbit)
-    {
-        validateOrbits(initialOrbit, targetOrbit);
-
-        double transferAxis =
-            calculateTransferSemiMajorAxis(
-                initialOrbit,
-                targetOrbit
-            );
-
-        double targetVelocity =
-            orbitalMechanics.calculateCircularVelocity(
-                targetOrbit
-            );
-
-        double transferVelocity =
-            orbitalMechanics.calculateVisVivaVelocity(
-                targetOrbit,
-                transferAxis
-            );
-
-        return Math.abs(targetVelocity - transferVelocity);
-    }
-
-    public double calculateTotalDeltaV(
-        Orbit initialOrbit,
-        Orbit targetOrbit)
-    {
-        double firstBurn =
-            calculateFirstBurnDeltaV(initialOrbit, targetOrbit);
-
-        double secondBurn =
-            calculateSecondBurnDeltaV(initialOrbit, targetOrbit);
-
-        double total = firstBurn + secondBurn;
-
-        if (!Double.isFinite(total))
+        validateOrbit(initialOrbit, "Initial orbit");
+        validateOrbit(targetOrbit, "Target orbit");
+        double r1 = initialOrbit.getRadius();
+        double r2 = targetOrbit.getRadius();
+        double a = (r1 + r2) / 2.0;
+        if (Math.abs(r2 - r1) <= Math.max(r1, r2) * 1e-12)
         {
-            throw new ArithmeticException(
-                "Total transfer delta-v is invalid."
-            );
+            return new TransferResult(a, 0.0, 0.0, 0.0, 0.0);
         }
-
-        return total;
+        double mu = earth.getGravitationalParameter();
+        double v1 = Math.sqrt(mu / r1);
+        double v2 = Math.sqrt(mu / r2);
+        double transferVelocity1 = Math.sqrt(mu * (2.0 / r1 - 1.0 / a));
+        double transferVelocity2 = Math.sqrt(mu * (2.0 / r2 - 1.0 / a));
+        double burn1 = Math.abs(transferVelocity1 - v1);
+        double burn2 = Math.abs(v2 - transferVelocity2);
+        double total = burn1 + burn2;
+        double time = Math.PI * Math.sqrt((a * a * a) / mu);
+        if (!Double.isFinite(total) || !Double.isFinite(time)) throw new ArithmeticException("Hohmann transfer result is invalid.");
+        return new TransferResult(a, burn1, burn2, total, time);
     }
 
-    public double calculateTransferTime(
-        Orbit initialOrbit,
-        Orbit targetOrbit)
+    public TransferResult calculateHohmannTransfer(Orbit initialOrbit, Orbit targetOrbit)
     {
-        double semiMajorAxis =
-            calculateTransferSemiMajorAxis(
-                initialOrbit,
-                targetOrbit
-            );
-
-        double time = Math.PI * Math.sqrt(
-            semiMajorAxis * semiMajorAxis * semiMajorAxis
-            / earth.getGravitationalParameter()
-        );
-
-        if (!Double.isFinite(time) || time <= 0.0)
-        {
-            throw new ArithmeticException(
-                "Transfer time is invalid."
-            );
-        }
-
-        return time;
+        return calculateTransfer(initialOrbit, targetOrbit);
     }
 
-    private void validateOrbits(
-        Orbit initialOrbit,
-        Orbit targetOrbit)
-    {
-        if (initialOrbit == null || targetOrbit == null)
-        {
-            throw new IllegalArgumentException(
-                "Initial and target orbits cannot be null."
-            );
-        }
+    public OrbitalMechanics getOrbitalMechanics() { return mechanics; }
+    public Earth getEarth() { return earth; }
 
-        if (!Double.isFinite(initialOrbit.getRadius())
-                || !Double.isFinite(targetOrbit.getRadius())
-                || initialOrbit.getRadius() <= 0.0
-                || targetOrbit.getRadius() <= 0.0)
-        {
-            throw new IllegalArgumentException(
-                "Both orbital radii must be finite and positive."
-            );
-        }
+    private void validateOrbit(Orbit orbit, String label)
+    {
+        if (orbit == null) throw new IllegalArgumentException(label + " cannot be null.");
+        if (!Double.isFinite(orbit.getRadius()) || orbit.getRadius() <= 0.0) throw new IllegalArgumentException(label + " radius is invalid.");
     }
 }

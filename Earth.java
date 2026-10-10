@@ -1,4 +1,3 @@
-
 public class Earth
 {
     private final double radius;
@@ -8,31 +7,30 @@ public class Earth
 
     public Earth()
     {
-        radius = Constants.EARTH_RADIUS;
-        mass = Constants.EARTH_MASS;
-        gravitationalParameter = Constants.EARTH_MU;
-
-        surfaceGravity = gravitationalParameter
-            / (radius * radius);
+        this(Constants.EARTH_RADIUS, Constants.EARTH_MASS, Constants.EARTH_MU);
     }
 
-    public double getRadius()
+    public Earth(double radius, double mass, double gravitationalParameter)
     {
-        return radius;
+        requirePositiveFinite(radius, "Earth radius");
+        requirePositiveFinite(mass, "Earth mass");
+        requirePositiveFinite(gravitationalParameter, "Gravitational parameter");
+        this.radius = radius;
+        this.mass = mass;
+        this.gravitationalParameter = gravitationalParameter;
+        this.surfaceGravity = gravitationalParameter / (radius * radius);
     }
 
-    public double getMass()
-    {
-        return mass;
-    }
+    public double getRadius() { return radius; }
+    public double getMass() { return mass; }
+    public double getGravitationalParameter() { return gravitationalParameter; }
+    public double getSurfaceGravity() { return surfaceGravity; }
 
-    public double getGravitationalParameter()
+    private static void requirePositiveFinite(double value, String label)
     {
-        return gravitationalParameter;
-    }
-
-    public double getSurfaceGravity()
-    {
-        return surfaceGravity;
+        if (!Double.isFinite(value) || value <= 0.0)
+        {
+            throw new IllegalArgumentException(label + " must be finite and positive.");
+        }
     }
 }
