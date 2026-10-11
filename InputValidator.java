@@ -1,6 +1,47 @@
-public final class InputValidator
+public class InputValidator
 {
-    private InputValidator() { }
+    public InputValidator() { }
+
+    public boolean isValidMissionName(String value)
+    {
+        return value != null && value.trim().matches("[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}");
+    }
+
+    public boolean isValidAltitude(double value)
+    {
+        return Double.isFinite(value) && value > 0.0;
+    }
+
+    public boolean areValidOrbitAltitudes(double initialAltitude, double targetAltitude)
+    {
+        return isValidAltitude(initialAltitude) && isValidAltitude(targetAltitude)
+            && Math.abs(initialAltitude - targetAltitude) > 1.0e-9;
+    }
+
+    public boolean isValidMass(double value)
+    {
+        return Double.isFinite(value) && value > 0.0;
+    }
+
+    public boolean isValidPropellantMass(double value)
+    {
+        return Double.isFinite(value) && value >= 0.0;
+    }
+
+    public boolean isValidSpecificImpulse(double value)
+    {
+        return Double.isFinite(value) && value > 0.0;
+    }
+
+    public boolean isValidThrust(double value)
+    {
+        return Double.isFinite(value) && value > 0.0;
+    }
+
+    public boolean isValidEfficiency(double value)
+    {
+        return Double.isFinite(value) && value > 0.0 && value <= 1.0;
+    }
 
     public static double parseFiniteDouble(String text, String fieldName)
     {
