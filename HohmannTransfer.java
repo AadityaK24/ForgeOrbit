@@ -69,6 +69,24 @@ public class HohmannTransfer
         return calculateTransfer(initialOrbit, targetOrbit);
     }
 
+    /** Legacy dashboard API: returns only the departure burn delta-v in m/s. */
+    public double calculateFirstBurnDeltaV(Orbit initialOrbit, Orbit targetOrbit)
+    {
+        return calculateTransfer(initialOrbit, targetOrbit).getFirstBurnDeltaV();
+    }
+
+    /** Legacy dashboard API: returns only the arrival circularisation burn delta-v in m/s. */
+    public double calculateSecondBurnDeltaV(Orbit initialOrbit, Orbit targetOrbit)
+    {
+        return calculateTransfer(initialOrbit, targetOrbit).getSecondBurnDeltaV();
+    }
+
+    /** Legacy dashboard API: returns the ideal transfer time in seconds. */
+    public double calculateTransferTime(Orbit initialOrbit, Orbit targetOrbit)
+    {
+        return calculateTransfer(initialOrbit, targetOrbit).getTransferTime();
+    }
+
     public OrbitalMechanics getOrbitalMechanics() { return mechanics; }
 
     /** Legacy accessor retained for existing Earth-orbit callers. */

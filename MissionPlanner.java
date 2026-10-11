@@ -1,50 +1,121 @@
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Mission planner compatible with both the original dashboard API and the V5 request API. */
 public class MissionPlanner
 {
+    private final PropellantCalculator propellantCalculator = new PropellantCalculator();
+    private final HohmannTransfer earthTransfer = new HohmannTransfer();
+    private final LunarMissionCalculator lunarCalculator = new LunarMissionCalculator();
+    private final InterplanetaryTransfer interplanetaryCalculator = new InterplanetaryTransfer();
+
     public MissionPlanResult createPlan(MissionRequest request)
     {
-        if (request == null)
-            throw new IllegalArgumentException("Mission request cannot be null.");
+        return analyze(request);
+    }
 
-        switch (request.getMissionType())
+    public MissionPlanResult analyse(MissionRequest request)
+    {
+        return analyze(request);
+    }
+
+    public MissionPlanResult analyze(MissionRequest request)
+    {
+        if (request == null) throw new IllegalArgumentException("Mission request cannot be null.");
+
+        // The compact V5 constructor intentionally requests a trajectory-only estimate.
+        if (request.isSimplifiedRequest())
         {
-            case EARTH_ORBIT:
-                return planEarthOrbit(request);
-            case LUNAR:
-                return planLunar(request);
-            case INTERPLANETARY:
-                return planInterplanetary(request);
-            default:
-                throw new IllegalArgumentException("Unsupported mission type.");
+            double deltaV;
+            double transferTime;
+            String summary;
+            if (request.getMissionType() == MissionType.EARTH_ORBIT || request.getMissionType() == MissionType.SATELLITE)
+            {
+                double startAltitude = Math.max(1.0, request.getLaunchAltitudeMetres());
+                double targetAltitude = Math.max(1.0, request.getTargetAltitudeMetres());
+                TransferResult transfer = earthTransfer.calculateTransfer(new Orbit(startAltitude), new Orbit(targetAltitude));
+                deltaV = transfer.getTotalDeltaV();
+                transferTime = transfer.getTransferTime();
+                summary = "Ideal Hohmann transfer between circular Earth orbits; propulsion feasibility was not evaluated.";
+            }
+            else if (request.getMissionType() == MissionType.LUNAR)
+            {
+                LunarMissionResult result = lunarCalculator.calculateTransfer(
+                    Math.max(100000.0, request.getLaunchAltitudeMetres()));
+                deltaV = result.getTotalDeltaV();
+                transferTime = result.getTransferTimeSeconds();
+                summary = "Simplified Earth-to-lunar-orbit estimate; propulsion feasibility was not evaluated.";
+            }
+            else
+            {
+                InterplanetaryTransferResult result = interplanetaryCalculator.calculateTransfer(
+                    request.getOriginBodyName(), request.getDestinationBodyName());
+                deltaV = result.getTotalDeltaV();
+                transferTime = result.getTransferTimeSeconds();
+                summary = "Ideal coplanar Hohmann estimate; launch windows and escape/capture burns are not modelled.";
+            }
+            return new MissionPlanResult(request.getMissionName(), request.getMissionType(), summary,
+                deltaV, transferTime, true);
         }
-    }
 
-    private MissionPlanResult planEarthOrbit(MissionRequest request)
-    {
-        Orbit initial = new Orbit(request.getLaunchAltitudeMetres());
-        Orbit target = new Orbit(request.getTargetAltitudeMetres());
-        TransferResult transfer = new HohmannTransfer().calculateTransfer(initial, target);
-        return new MissionPlanResult(request.getMissionName(), request.getMissionType(),
-            "Ideal Hohmann transfer between circular Earth orbits.",
-            transfer.getTotalDeltaV(), transfer.getTransferTime(), true);
-    }
+        double deltaV;
+        double transferSeconds;
+        double launchWaitSeconds = 0.0;
+        String origin;
+        String destination;
+        LocalDateTime departure = request.getLaunchDateTime();
+        List<String> assumptions = new ArrayList<String>();
 
-    private MissionPlanResult planLunar(MissionRequest request)
-    {
-        double parkingAltitude = request.getLaunchAltitudeMetres() > 0.0
-            ? request.getLaunchAltitudeMetres() : 200000.0;
-        LunarMissionResult result = new LunarMissionCalculator().calculateTransfer(parkingAltitude);
-        return new MissionPlanResult(request.getMissionName(), request.getMissionType(),
-            "Simplified patched-conic estimate from low Earth orbit to a 100 km lunar orbit.",
-            result.getTotalDeltaV(), result.getTransferTimeSeconds(), true);
-    }
+        if (request.getMissionType() == MissionType.SATELLITE || request.getMissionType() == MissionType.EARTH_ORBIT)
+        {
+            Orbit start = new Orbit(Math.max(1.0, request.getInitialEarthOrbitAltitudeKm() * Constants.KM_TO_M));
+            Orbit target = new Orbit(Math.max(1.0, request.getTargetEarthOrbitAltitudeKm() * Constants.KM_TO_M));
+            TransferResult result = earthTransfer.calculateTransfer(start, target);
+            deltaV = result.getTotalDeltaV();
+            transferSeconds = result.getTransferTime();
+            origin = String.format("Earth orbit %.0f km", request.getInitialEarthOrbitAltitudeKm());
+            destination = String.format("Earth orbit %.0f km", request.getTargetEarthOrbitAltitudeKm());
+            assumptions.add("Two-body Earth model with impulsive Hohmann burns between circular, coplanar orbits.");
+        }
+        else if (request.getMissionType() == MissionType.LUNAR)
+        {
+            LunarMissionResult result = lunarCalculator.calculateTransfer(
+                Math.max(100.0, request.getInitialEarthOrbitAltitudeKm()), request.getTargetLunarOrbitAltitudeKm());
+            deltaV = result.getTotalDeltaV();
+            transferSeconds = result.getTransferTimeSeconds();
+            origin = String.format("Earth orbit %.0f km", request.getInitialEarthOrbitAltitudeKm());
+            destination = String.format("Lunar orbit %.0f km", request.getTargetLunarOrbitAltitudeKm());
+            assumptions.add(result.getAssumptions());
+        }
+        else
+        {
+            InterplanetaryTransferResult result = interplanetaryCalculator.calculateTransfer(
+                request.getOriginPlanet(), request.getDestinationPlanet(), request.getLaunchDateTime());
+            deltaV = result.getTotalDeltaV();
+            transferSeconds = result.getTransferTimeSeconds();
+            launchWaitSeconds = result.getLaunchWaitSeconds();
+            departure = result.getEstimatedDeparture();
+            origin = result.getOrigin();
+            destination = result.getDestination();
+            assumptions.add(result.getAssumptions());
+        }
 
-    private MissionPlanResult planInterplanetary(MissionRequest request)
-    {
-        InterplanetaryTransferResult result = new InterplanetaryTransfer().calculateTransfer(
-            request.getOriginBodyName(), request.getDestinationBodyName());
-        return new MissionPlanResult(request.getMissionName(), request.getMissionType(),
-            "Ideal coplanar Hohmann estimate from " + result.getOriginBodyName()
-                + " to " + result.getDestinationBodyName() + ". Launch windows and capture are not modelled.",
-            result.getTotalDeltaV(), result.getTransferTimeSeconds(), true);
+        Propulsion propulsion = new Propulsion("Mission Engine", request.getSpecificImpulseSeconds(),
+            request.getThrustNewtons(), request.getPropulsionEfficiency());
+        double requiredPropellant = propellantCalculator.calculateRequiredPropellant(
+            deltaV, request.getDryMassKg(), propulsion);
+        double availablePropellant = request.getPropellantMassKg();
+        double availableDeltaV = propellantCalculator.calculateAvailableDeltaV(
+            request.getDryMassKg(), availablePropellant, propulsion);
+        boolean feasible = requiredPropellant <= availablePropellant + 1e-9
+            && availableDeltaV + 1e-9 >= deltaV;
+        String status = feasible ? "FEASIBLE UNDER MODEL ASSUMPTIONS"
+            : "INSUFFICIENT PROPELLANT UNDER MODEL ASSUMPTIONS";
+        assumptions.add("Propellant estimate uses the ideal rocket equation and treats total delta-v as a single equivalent manoeuvre budget.");
+        assumptions.add("This planning result is an educational first-order estimate, not a flight-ready trajectory or mission design.");
+        return new MissionPlanResult(request.getMissionName(), request.getMissionType(), origin, destination,
+            deltaV, requiredPropellant, availablePropellant, availableDeltaV, transferSeconds,
+            launchWaitSeconds, feasible, status, assumptions, departure);
     }
 }
